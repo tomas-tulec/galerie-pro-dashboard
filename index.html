@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Galerie TTF</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#111111">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Galerie TTF">
+<style>
+  :root{
+    --gold:#d4a017; --ink:#111; --paper:#fff; --bg:#f2efe9;
+    --line:#e3ddd2; --muted:#7a7468; --green:#3a8a4d; --gray:#9a938a; --red:#b04a3a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{font-family:Arial,Helvetica,sans-serif; background:var(--bg); color:var(--ink); overscroll-behavior-y:contain;}
+  button{font-family:inherit;}
+  a{color:inherit;}
+  img{max-width:100%; display:block;}
+
+  #app{display:flex; flex-direction:column; height:100vh; height:100dvh;}
+
+  .topbar{background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; padding-top:max(14px, env(safe-area-inset-top)); flex:none; box-shadow:0 2px 8px rgba(0,0,0,.15); z-index:10;}
+  .topbar-left{display:flex; align-items:center; gap:10px; min-width:0;}
+  .back-btn{background:none; border:none; color:var(--gold); font-size:22px; cursor:pointer; line-height:1; padding:2px 4px;}
+  .topbar-title{font-size:15px; letter-spacing:.06em; text-transform:uppercase; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .topbar-title .sub{display:block; font-size:11px; letter-spacing:.02em; text-transform:none; color:var(--gold); font-weight:normal; margin-top:1px;}
+  .icon-btn{background:none; border:none; color:var(--gold); font-size:19px; cursor:pointer; padding:4px 6px; line-height:1;}
+  .icon-btn.spin{animation:spin .8s linear infinite;}
+  @keyframes spin{from{transform:rotate(0deg);} to{transform:rotate(360deg);}}
+
+  .tabs{display:flex; background:var(--paper); border-bottom:1px solid var(--line); flex:none;}
+  .tab{flex:1; text-align:center; padding:12px 8px; font-size:13px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); background:none; border:none; cursor:pointer; border-bottom:3px solid transparent;}
+  .tab.active{color:var(--ink); font-weight:bold; border-bottom-color:var(--gold);}
+
+  #view{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; position:relative;}
+
+  .ptr-indicator{display:flex; align-items:center; justify-content:center; height:0; overflow:hidden; color:var(--muted); font-size:12px; transition:height .15s ease; flex:none;}
+  .ptr-indicator.show{height:40px;}
+
+  .list-wrap{padding:14px; max-width:640px; margin:0 auto;}
+
+  .state-msg{text-align:center; color:var(--muted); font-size:13.5px; padding:60px 20px;}
+  .state-msg button{margin-top:14px; display:inline-block; background:var(--ink); color:#fff; border:none; padding:9px 18px; font-size:13px; cursor:pointer;}
+
+  .g-card{background:var(--paper); border:1px solid var(--line); border-left:4px solid var(--gold); padding:14px 16px; margin-bottom:12px; cursor:pointer;}
+  .g-card:active{background:#faf5e6;}
+  .g-card.is-trash{border-left-color:var(--gray);}
+  .g-head{display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px;}
+  .g-name{font-size:15.5px; font-weight:bold; line-height:1.3;}
+  .g-client{font-size:12.5px; color:var(--muted); margin-top:2px;}
+  .badge{font-size:10px; letter-spacing:.06em; text-transform:uppercase; padding:3px 8px; border-radius:10px; white-space:nowrap; flex:none;}
+  .badge.active{background:#e7f3e9; color:var(--green);}
+  .badge.trash{background:#eee; color:var(--gray);}
+  .badge.other{background:#fbf1de; color:#a8790f;}
+
+  .g-progress-row{display:flex; align-items:center; gap:10px; margin-top:10px;}
+  .g-bar{flex:1; height:6px; background:var(--line); border-radius:3px; overflow:hidden;}
+  .g-bar-fill{height:100%; background:var(--gold);}
+  .g-progress-text{font-size:12px; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+  .g-foot{display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted); margin-top:8px;}
+
+  .footer-link{display:block; text-align:center; padding:18px; font-size:11.5px; color:var(--muted); text-decoration:underline; background:none; border:none; width:100%; cursor:pointer;}
+
+  /* ============ DETAIL ============ */
+  .detail-head{background:var(--paper); border-bottom:1px solid var(--line); padding:16px 16px 14px;}
+  .d-title{font-size:18px; font-weight:bold; margin-bottom:4px;}
+  .d-row{font-size:13px; color:var(--muted); margin-top:3px; line-height:1.5;}
+  .d-row a{color:var(--ink); text-decoration:underline;}
+  .d-badges{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  .d-public{display:inline-block; margin-top:12px; font-size:12.5px; color:#fff; background:var(--ink); padding:9px 14px; text-decoration:none; border-left:3px solid var(--gold);}
+
+  .d-progress{padding:14px 16px; background:var(--paper); border-bottom:1px solid var(--line);}
+  .d-progress .g-progress-text{font-size:13.5px; font-weight:bold; color:var(--ink); margin-bottom:6px; display:block;}
+  .d-progress .g-bar{height:8px;}
+
+  .filters{display:flex; gap:6px; padding:12px 16px; background:var(--paper); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5;}
+  .filters button{flex:1; font-size:12px; padding:8px 4px; border:1px solid var(--line); background:#fbfaf7; color:var(--ink); cursor:pointer;}
+  .filters button.active{background:var(--ink); color:var(--gold); border-color:var(--ink);}
+
+  .photo-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:8px; padding:14px;}
+  .photo-cell{position:relative; aspect-ratio:3/2; overflow:hidden; background:#e8e4da; border:2px solid transparent;}
+  .photo-cell.selected{border-color:var(--green);}
+  .photo-cell img{width:100%; height:100%; object-fit:cover;}
+  .photo-check{position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:var(--green); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; box-shadow:0 1px 4px rgba(0,0,0,.3);}
+  .photo-name{position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(0,0,0,.65)); color:#fff; font-size:9.5px; padding:10px 5px 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  /* ============ AUTH MODAL ============ */
+  .auth-overlay{position:fixed; inset:0; background:rgba(17,17,17,.6); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px;}
+  .auth-overlay[hidden]{display:none;}
+  .auth-panel{background:var(--paper); border-top:4px solid var(--gold); max-width:360px; width:100%; padding:24px 22px; box-shadow:0 8px 30px rgba(0,0,0,.3);}
+  .auth-panel h2{font-size:16px; letter-spacing:.04em; margin-bottom:8px;}
+  .auth-hint{font-size:12.5px; color:var(--muted); line-height:1.5; margin-bottom:16px;}
+  .auth-hint code{background:#f2efe9; padding:1px 4px; font-size:11px; word-break:break-all;}
+  .auth-panel input{width:100%; font-size:15px; padding:10px 11px; border:1px solid var(--line); background:#fbfaf7; color:var(--ink); margin-bottom:10px;}
+  .auth-panel input:focus{outline:2px solid var(--gold); outline-offset:-1px; background:#fff;}
+  .auth-error{font-size:12px; color:var(--red); margin-bottom:10px;}
+  .auth-error[hidden]{display:none;}
+  .auth-panel button{width:100%; font-size:14px; padding:11px; cursor:pointer; border:1px solid var(--ink); background:var(--ink); color:#fff;}
+  .auth-panel button:hover{opacity:.88;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button id="backBtn" class="back-btn" hidden aria-label="Zpět">←</button>
+      <div class="topbar-title" id="topbarTitle">Galerie TTF</div>
+    </div>
+    <button id="refreshBtn" class="icon-btn" title="Obnovit" aria-label="Obnovit">⟳</button>
+  </header>
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="active">Aktivní</button>
+    <button class="tab" data-tab="trash">Koš</button>
+  </div>
+  <div class="ptr-indicator" id="ptrIndicator">Obnovuji…</div>
+  <main id="view"></main>
+</div>
+
+<div class="auth-overlay" id="authOverlay" hidden>
+  <div class="auth-panel">
+    <h2>Přístup ke galeriím</h2>
+    <p class="auth-hint">Zadej API klíč. Získáš ho ve WP konzoli příkazem:<br><code>wp.apiFetch({path:'/tg/v1/api-key'}).then(d=&gt;console.log(d.api_key))</code></p>
+    <input id="authInput" type="text" placeholder="API klíč" autocomplete="off" spellcheck="false" autocapitalize="off">
+    <div class="auth-error" id="authError" hidden></div>
+    <button id="authSubmit">Pokračovat</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const API_BASE = 'https://www.tulectrendfoto.cz/wp-json/tg/v1/dashboard';
+const KEY_STORAGE = 'ttf_gallery_api_key';
+
+const state = {
+  apiKey: localStorage.getItem(KEY_STORAGE) || null,
+  tab: 'active',
+  active: null,
+  trash: null,
+  view: 'list',
+  detail: null,
+  currentGalleryId: null,
+  photoFilter: 'all',
+  loading: false,
+  error: null,
+};
+
+const els = {
+  view: document.getElementById('view'),
+  topbarTitle: document.getElementById('topbarTitle'),
+  backBtn: document.getElementById('backBtn'),
+  refreshBtn: document.getElementById('refreshBtn'),
+  tabs: document.getElementById('tabs'),
+  ptrIndicator: document.getElementById('ptrIndicator'),
+  authOverlay: document.getElementById('authOverlay'),
+  authInput: document.getElementById('authInput'),
+  authError: document.getElementById('authError'),
+  authSubmit: document.getElementById('authSubmit'),
+};
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ============ AUTH ============
+
+let authResolve = null;
+
+function askForApiKey(errorMsg) {
+  els.authInput.value = '';
+  if (errorMsg) {
+    els.authError.textContent = errorMsg;
+    els.authError.hidden = false;
+  } else {
+    els.authError.hidden = true;
+  }
+  els.authOverlay.hidden = false;
+  setTimeout(() => els.authInput.focus(), 50);
+  return new Promise((resolve) => { authResolve = resolve; });
+}
+
+function submitApiKey() {
+  const key = els.authInput.value.trim();
+  if (!key) {
+    els.authError.textContent = 'Zadej platný API klíč.';
+    els.authError.hidden = false;
+    return;
+  }
+  state.apiKey = key;
+  localStorage.setItem(KEY_STORAGE, key);
+  els.authOverlay.hidden = true;
+  if (authResolve) { authResolve(key); authResolve = null; }
+}
+
+els.authSubmit.addEventListener('click', submitApiKey);
+els.authInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitApiKey();
+});
+
+async function ensureApiKey() {
+  if (state.apiKey) return state.apiKey;
+  return askForApiKey();
+}
+
+async function apiFetch(path, { retry = true } = {}) {
+  await ensureApiKey();
+  const sep = path.includes('?') ? '&' : '?';
+  const url = `${API_BASE}${path}${sep}api_key=${encodeURIComponent(state.apiKey)}`;
+  const res = await fetch(url);
+  if (res.status === 401) {
+    localStorage.removeItem(KEY_STORAGE);
+    state.apiKey = null;
+    if (retry) {
+      await askForApiKey('Neplatný API klíč. Zkus to znovu.');
+      return apiFetch(path, { retry: false });
+    }
+    throw new Error('Neplatný API klíč.');
+  }
+  if (!res.ok) {
+    throw new Error(`Chyba serveru (${res.status}).`);
+  }
+  return res.json();
+}
+
+// ============ DATA ============
+
+function sortByCreatedDesc(list) {
+  return [...list].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+}
+
+async function loadActive(force) {
+  if (state.active && !force) return;
+  state.loading = true;
+  state.error = null;
+  render();
+  try {
+    const data = await apiFetch('/galleries');
+    state.active = sortByCreatedDesc(data);
+  } catch (e) {
+    state.error = e.message || 'Nepodařilo se načíst galerie.';
+  }
+  state.loading = false;
+  render();
+}
+
+async function loadTrash(force) {
+  if (state.trash && !force) return;
+  state.loading = true;
+  state.error = null;
+  render();
+  try {
+    const data = await apiFetch('/trash');
+    state.trash = sortByCreatedDesc(data);
+  } catch (e) {
+    state.error = e.message || 'Nepodařilo se načíst koš.';
+  }
+  state.loading = false;
+  render();
+}
+
+async function loadDetail(id, force) {
+  if (state.detail && state.detail.gallery.id === id && !force) return;
+  state.loading = true;
+  state.error = null;
+  render();
+  try {
+    const data = await apiFetch(`/gallery/${id}`);
+    state.detail = data;
+  } catch (e) {
+    state.error = e.message || 'Nepodařilo se načíst detail galerie.';
+  }
+  state.loading = false;
+  render();
+}
+
+async function refreshCurrent() {
+  els.refreshBtn.classList.add('spin');
+  if (state.view === 'detail' && state.detail) {
+    await loadDetail(state.detail.gallery.id, true);
+  } else if (state.tab === 'trash') {
+    await loadTrash(true);
+  } else {
+    await loadActive(true);
+  }
+  els.refreshBtn.classList.remove('spin');
+}
+
+// ============ ROUTING / VIEWS ============
+
+function showList(tab) {
+  state.view = 'list';
+  state.tab = tab;
+  state.detail = null;
+  els.backBtn.hidden = true;
+  els.tabs.style.display = 'flex';
+  render();
+  if (tab === 'trash') loadTrash(false);
+  else loadActive(false);
+}
+
+function openGallery(id) {
+  state.view = 'detail';
+  state.photoFilter = 'all';
+  state.currentGalleryId = id;
+  els.backBtn.hidden = false;
+  els.tabs.style.display = 'none';
+  state.detail = null;
+  render();
+  loadDetail(id, false);
+}
+
+function goBack() {
+  showList(state.tab);
+}
+
+// ============ RENDER ============
+
+function statusBadge(g, isTrash) {
+  if (isTrash) return `<span class="badge trash">Smazáno</span>`;
+  if (g.submitted_at) return `<span class="badge other">Dokončeno</span>`;
+  if (g.status === 'active') return `<span class="badge active">Aktivní</span>`;
+  return `<span class="badge other">${esc(g.status || '')}</span>`;
+}
+
+function renderGalleryCard(g, isTrash) {
+  const total = g.total_photos || 0;
+  const selected = g.selected_photos || 0;
+  const pct = total > 0 ? Math.round((selected / total) * 100) : 0;
+  const dateLabel = isTrash ? `Smazáno: ${esc(g.deleted_at_formatted || '—')}` : `Vytvořeno: ${esc(g.created_at_formatted || '—')}`;
+  return `
+    <div class="g-card${isTrash ? ' is-trash' : ''}" data-open="${g.id}">
+      <div class="g-head">
+        <div>
+          <div class="g-name">${esc(g.name || g.client_name || 'Bez názvu')}</div>
+          ${g.client_name && g.client_name !== g.name ? `<div class="g-client">${esc(g.client_name)}</div>` : ''}
+        </div>
+        ${statusBadge(g, isTrash)}
+      </div>
+      <div class="g-progress-row">
+        <div class="g-bar"><div class="g-bar-fill" style="width:${pct}%"></div></div>
+        <div class="g-progress-text">${selected} / ${total}</div>
+      </div>
+      <div class="g-foot">
+        <span>${dateLabel}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderList() {
+  const isTrash = state.tab === 'trash';
+  const list = isTrash ? state.trash : state.active;
+
+  els.topbarTitle.innerHTML = 'Galerie TTF';
+
+  if (state.loading && !list) {
+    return `<div class="list-wrap"><div class="state-msg">Načítám…</div></div>`;
+  }
+  if (state.error && !list) {
+    return `<div class="list-wrap"><div class="state-msg">${esc(state.error)}<br><button id="retryBtn">Zkusit znovu</button></div></div>`;
+  }
+  if (!list || list.length === 0) {
+    const msg = isTrash ? 'Koš je prázdný.' : 'Žádné aktivní galerie.';
+    return `<div class="list-wrap"><div class="state-msg">${msg}</div></div>`;
+  }
+  return `
+    <div class="list-wrap">
+      ${list.map((g) => renderGalleryCard(g, isTrash)).join('')}
+      <button class="footer-link" id="changeKeyBtn">Změnit API klíč</button>
+    </div>
+  `;
+}
+
+function renderPhotoFilters() {
+  const filters = [
+    ['all', 'Všechny'],
+    ['selected', 'Jen vybrané'],
+    ['unselected', 'Jen nevybrané'],
+  ];
+  return `
+    <div class="filters">
+      ${filters.map(([key, label]) => `<button data-filter="${key}" class="${state.photoFilter === key ? 'active' : ''}">${label}</button>`).join('')}
+    </div>
+  `;
+}
+
+function renderDetail() {
+  if (state.loading && !state.detail) {
+    els.topbarTitle.innerHTML = 'Galerie';
+    return `<div class="list-wrap"><div class="state-msg">Načítám…</div></div>`;
+  }
+  if (state.error && !state.detail) {
+    els.topbarTitle.innerHTML = 'Galerie';
+    return `<div class="list-wrap"><div class="state-msg">${esc(state.error)}<br><button id="retryBtn">Zkusit znovu</button></div></div>`;
+  }
+  if (!state.detail) return '';
+
+  const { gallery: g, photos, total_photos, selected_photos } = state.detail;
+  els.topbarTitle.innerHTML = `${esc(g.name || g.client_name || '')}<span class="sub">${selected_photos} / ${total_photos} vybráno</span>`;
+
+  const pct = total_photos > 0 ? Math.round((selected_photos / total_photos) * 100) : 0;
+  const isTrash = !!g.deleted_at;
+
+  let filteredPhotos = photos;
+  if (state.photoFilter === 'selected') filteredPhotos = photos.filter((p) => p.is_selected);
+  if (state.photoFilter === 'unselected') filteredPhotos = photos.filter((p) => !p.is_selected);
+
+  return `
+    <div class="detail-head">
+      <div class="d-title">${esc(g.name || 'Bez názvu')}</div>
+      ${g.client_name ? `<div class="d-row"><strong>${esc(g.client_name)}</strong></div>` : ''}
+      ${g.client_email ? `<div class="d-row"><a href="mailto:${esc(g.client_email)}">${esc(g.client_email)}</a></div>` : ''}
+      <div class="d-row">Vytvořeno: ${esc(g.created_at_formatted || '—')}</div>
+      ${g.expires_at_formatted ? `<div class="d-row">Vyprší: ${esc(g.expires_at_formatted)}</div>` : ''}
+      ${g.submitted_at_formatted ? `<div class="d-row">Odesláno klientem: ${esc(g.submitted_at_formatted)}</div>` : ''}
+      ${isTrash && g.deleted_at_formatted ? `<div class="d-row">Smazáno: ${esc(g.deleted_at_formatted)}</div>` : ''}
+      ${(g.min_select || g.max_select) ? `<div class="d-row">Limit výběru: ${g.min_select ? `min. ${g.min_select}` : ''}${g.min_select && g.max_select ? ' / ' : ''}${g.max_select ? `max. ${g.max_select}` : ''}</div>` : ''}
+      <div class="d-badges">${statusBadge(g, isTrash)}</div>
+      ${g.public_url ? `<a class="d-public" href="${esc(g.public_url)}" target="_blank" rel="noopener">Otevřít veřejnou galerii →</a>` : ''}
+    </div>
+    <div class="d-progress">
+      <span class="g-progress-text">${selected_photos} z ${total_photos} vybráno</span>
+      <div class="g-bar"><div class="g-bar-fill" style="width:${pct}%"></div></div>
+    </div>
+    ${renderPhotoFilters()}
+    <div class="photo-grid">
+      ${filteredPhotos.map((p) => `
+        <div class="photo-cell${p.is_selected ? ' selected' : ''}">
+          <img src="${esc(p.fileurl)}" alt="${esc(p.filename)}" loading="lazy">
+          ${p.is_selected ? '<div class="photo-check">✓</div>' : ''}
+          <div class="photo-name">${esc(p.filename)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function render() {
+  els.view.innerHTML = state.view === 'detail' ? renderDetail() : renderList();
+}
+
+// ============ EVENTS ============
+
+els.tabs.addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab');
+  if (!btn) return;
+  document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+  btn.classList.add('active');
+  showList(btn.dataset.tab);
+});
+
+els.backBtn.addEventListener('click', goBack);
+els.refreshBtn.addEventListener('click', refreshCurrent);
+
+els.view.addEventListener('click', (e) => {
+  const card = e.target.closest('[data-open]');
+  if (card) {
+    openGallery(Number(card.dataset.open));
+    return;
+  }
+  const retry = e.target.closest('#retryBtn');
+  if (retry) {
+    if (state.view === 'detail') {
+      loadDetail(state.currentGalleryId, true);
+    } else if (state.tab === 'trash') {
+      loadTrash(true);
+    } else {
+      loadActive(true);
+    }
+    return;
+  }
+  const changeKey = e.target.closest('#changeKeyBtn');
+  if (changeKey) {
+    localStorage.removeItem(KEY_STORAGE);
+    state.apiKey = null;
+    state.active = null;
+    state.trash = null;
+    askForApiKey().then(() => {
+      if (state.tab === 'trash') loadTrash(true);
+      else loadActive(true);
+    });
+    return;
+  }
+  const filterBtn = e.target.closest('[data-filter]');
+  if (filterBtn) {
+    state.photoFilter = filterBtn.dataset.filter;
+    render();
+  }
+});
+
+// ============ PULL TO REFRESH ============
+
+(function setupPullToRefresh() {
+  let startY = null;
+  let pulling = false;
+  const threshold = 65;
+
+  els.view.addEventListener('touchstart', (e) => {
+    if (els.view.scrollTop <= 0) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    } else {
+      startY = null;
+      pulling = false;
+    }
+  }, { passive: true });
+
+  els.view.addEventListener('touchmove', (e) => {
+    if (!pulling || startY === null) return;
+    const diff = e.touches[0].clientY - startY;
+    if (diff > 0 && els.view.scrollTop <= 0) {
+      const height = Math.min(diff * 0.5, 70);
+      els.ptrIndicator.style.height = height + 'px';
+      els.ptrIndicator.classList.add('show');
+      els.ptrIndicator.textContent = diff * 0.5 > threshold ? 'Pusť pro obnovení' : 'Táhni pro obnovení';
+    }
+  }, { passive: true });
+
+  els.view.addEventListener('touchend', (e) => {
+    if (!pulling || startY === null) return;
+    const height = parseFloat(els.ptrIndicator.style.height) || 0;
+    els.ptrIndicator.style.height = '0px';
+    els.ptrIndicator.classList.remove('show');
+    if (height > threshold) {
+      els.ptrIndicator.textContent = 'Obnovuji…';
+      refreshCurrent();
+    }
+    startY = null;
+    pulling = false;
+  });
+})();
+
+// ============ INIT ============
+
+async function init() {
+  await ensureApiKey();
+  showList('active');
+}
+
+init();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
