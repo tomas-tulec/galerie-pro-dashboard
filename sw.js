@@ -1,5 +1,5 @@
 // Service worker — cachuje pouze app shell, data z API se vždy tahají online
-const CACHE_NAME = 'galerie-ttf-shell-v1';
+const CACHE_NAME = 'galerie-ttf-shell-v2';
 const SHELL_FILES = [
   '/',
   '/index.html',

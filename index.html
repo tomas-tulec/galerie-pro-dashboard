@@ -88,8 +88,12 @@
   .photo-cell{position:relative; aspect-ratio:3/2; overflow:hidden; background:#e8e4da; border:2px solid transparent;}
   .photo-cell.selected{border-color:var(--green);}
   .photo-cell img{width:100%; height:100%; object-fit:cover;}
+  .photo-cell.img-error img{display:none;}
   .photo-check{position:absolute; top:4px; right:4px; width:20px; height:20px; border-radius:50%; background:var(--green); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; box-shadow:0 1px 4px rgba(0,0,0,.3);}
   .photo-name{position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent,rgba(0,0,0,.65)); color:#fff; font-size:9.5px; padding:10px 5px 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .photo-fallback{display:none; position:absolute; inset:0; flex-direction:column; align-items:center; justify-content:center; gap:5px; background:#e8e4da; color:var(--muted); font-size:10px; text-align:center; line-height:1.4; padding:6px; cursor:pointer;}
+  .photo-cell.img-error .photo-fallback{display:flex;}
+  .photo-fallback .pf-icon{font-size:18px; color:var(--gold);}
 
   /* ============ AUTH MODAL ============ */
   .auth-overlay{position:fixed; inset:0; background:rgba(17,17,17,.6); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px;}
@@ -434,7 +438,11 @@ function renderDetail() {
     <div class="photo-grid">
       ${filteredPhotos.map((p) => `
         <div class="photo-cell${p.is_selected ? ' selected' : ''}">
-          <img src="${esc(p.fileurl)}" alt="${esc(p.filename)}" loading="lazy">
+          <img src="${esc(p.fileurl)}" alt="${esc(p.filename)}" loading="lazy" decoding="async" onerror="this.closest('.photo-cell').classList.add('img-error')">
+          <div class="photo-fallback" data-retry-url="${esc(p.fileurl)}">
+            <span class="pf-icon">⟳</span>
+            <span>Nepodařilo se načíst<br>klikni pro opakování</span>
+          </div>
           ${p.is_selected ? '<div class="photo-check">✓</div>' : ''}
           <div class="photo-name">${esc(p.filename)}</div>
         </div>
@@ -493,6 +501,14 @@ els.view.addEventListener('click', (e) => {
   if (filterBtn) {
     state.photoFilter = filterBtn.dataset.filter;
     render();
+  }
+  const fallback = e.target.closest('.photo-fallback');
+  if (fallback) {
+    const cell = fallback.closest('.photo-cell');
+    const img = cell.querySelector('img');
+    const url = fallback.dataset.retryUrl;
+    cell.classList.remove('img-error');
+    img.src = url + (url.includes('?') ? '&' : '?') + '_retry=' + Date.now();
   }
 });
 
