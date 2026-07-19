@@ -1,5 +1,5 @@
 // Service worker — cachuje pouze app shell, data z API se vždy tahají online
-const CACHE_NAME = 'galerie-ttf-shell-v2';
+const CACHE_NAME = 'galerie-ttf-shell-v3';
 const SHELL_FILES = [
   '/',
   '/index.html',
@@ -12,7 +12,9 @@ const SHELL_FILES = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_FILES)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.addAll(SHELL_FILES.map((u) => new Request(u, { cache: 'reload' })))
+    ).then(() => self.skipWaiting())
   );
 });
 
@@ -36,6 +38,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // HTML dokument (navigace) — nejdřív síť, cache jen jako offline záloha,
+  // aby se nová verze aplikace vždy nasadila hned po online spuštění
+  const isDocument = event.request.mode === 'navigate' ||
+    url.pathname === '/' || url.pathname === '/index.html';
+
+  if (isDocument) {
+    event.respondWith(
+      fetch(event.request).then((resp) => {
+        const copy = resp.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        return resp;
+      }).catch(() =>
+        caches.match(event.request).then((c) => c || caches.match('/index.html'))
+      )
+    );
+    return;
+  }
+
+  // Ostatní statické soubory (ikony, manifest) — nejdřív cache
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
