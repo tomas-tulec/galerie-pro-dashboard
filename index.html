@@ -27,8 +27,9 @@
 
   .topbar{background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; padding-top:max(14px, env(safe-area-inset-top)); flex:none; box-shadow:0 2px 8px rgba(0,0,0,.15); z-index:10;}
   .topbar-left{display:flex; align-items:center; gap:10px; min-width:0;}
+  .topbar-right{display:flex; align-items:center; gap:4px; flex:none;}
   .back-btn{background:none; border:none; color:var(--gold); font-size:22px; cursor:pointer; line-height:1; padding:2px 4px;}
-  .topbar-title{font-size:15px; letter-spacing:.06em; text-transform:uppercase; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .topbar-title{font-size:15px; letter-spacing:.06em; text-transform:uppercase; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
   .topbar-title .sub{display:block; font-size:11px; letter-spacing:.02em; text-transform:none; color:var(--gold); font-weight:normal; margin-top:1px;}
   .icon-btn{background:none; border:none; color:var(--gold); font-size:19px; cursor:pointer; padding:4px 6px; line-height:1;}
   .icon-btn.spin{animation:spin .8s linear infinite;}
@@ -65,8 +66,6 @@
   .g-progress-text{font-size:12px; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums;}
 
   .g-foot{display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted); margin-top:8px;}
-
-  .footer-link{display:block; text-align:center; padding:18px; font-size:11.5px; color:var(--muted); text-decoration:underline; background:none; border:none; width:100%; cursor:pointer;}
 
   /* ============ DETAIL ============ */
   .detail-head{background:var(--paper); border-bottom:1px solid var(--line); padding:16px 16px 14px;}
@@ -117,7 +116,10 @@
       <button id="backBtn" class="back-btn" hidden aria-label="Zpět">←</button>
       <div class="topbar-title" id="topbarTitle">Galerie TTF</div>
     </div>
-    <button id="refreshBtn" class="icon-btn" title="Obnovit" aria-label="Obnovit">⟳</button>
+    <div class="topbar-right">
+      <button id="settingsBtn" class="icon-btn" title="Změnit API klíč" aria-label="Změnit API klíč">⚙️</button>
+      <button id="refreshBtn" class="icon-btn" title="Obnovit" aria-label="Obnovit">⟳</button>
+    </div>
   </header>
   <div class="tabs" id="tabs">
     <button class="tab active" data-tab="active">Aktivní</button>
@@ -161,6 +163,7 @@ const els = {
   topbarTitle: document.getElementById('topbarTitle'),
   backBtn: document.getElementById('backBtn'),
   refreshBtn: document.getElementById('refreshBtn'),
+  settingsBtn: document.getElementById('settingsBtn'),
   tabs: document.getElementById('tabs'),
   ptrIndicator: document.getElementById('ptrIndicator'),
   authOverlay: document.getElementById('authOverlay'),
@@ -325,6 +328,18 @@ function goBack() {
   showList(state.tab);
 }
 
+// Vyžádá nový API klíč a znovu načte data
+function changeApiKey() {
+  localStorage.removeItem(KEY_STORAGE);
+  state.apiKey = null;
+  state.active = null;
+  state.trash = null;
+  askForApiKey().then(() => {
+    if (state.tab === 'trash') loadTrash(true);
+    else loadActive(true);
+  });
+}
+
 // ============ RENDER ============
 
 function statusBadge(g, isTrash) {
@@ -378,7 +393,6 @@ function renderList() {
   return `
     <div class="list-wrap">
       ${list.map((g) => renderGalleryCard(g, isTrash)).join('')}
-      <button class="footer-link" id="changeKeyBtn">Změnit API klíč</button>
     </div>
   `;
 }
@@ -467,6 +481,9 @@ els.tabs.addEventListener('click', (e) => {
 
 els.backBtn.addEventListener('click', goBack);
 els.refreshBtn.addEventListener('click', refreshCurrent);
+els.settingsBtn.addEventListener('click', () => {
+  if (confirm('Změnit API klíč?')) changeApiKey();
+});
 
 els.view.addEventListener('click', (e) => {
   const card = e.target.closest('[data-open]');
@@ -483,18 +500,6 @@ els.view.addEventListener('click', (e) => {
     } else {
       loadActive(true);
     }
-    return;
-  }
-  const changeKey = e.target.closest('#changeKeyBtn');
-  if (changeKey) {
-    localStorage.removeItem(KEY_STORAGE);
-    state.apiKey = null;
-    state.active = null;
-    state.trash = null;
-    askForApiKey().then(() => {
-      if (state.tab === 'trash') loadTrash(true);
-      else loadActive(true);
-    });
     return;
   }
   const filterBtn = e.target.closest('[data-filter]');
@@ -552,6 +557,30 @@ els.view.addEventListener('click', (e) => {
     startY = null;
     pulling = false;
   });
+})();
+
+// ============ DLOUHÉ PODRŽENÍ LOGA → ZMĚNA API KLÍČE ============
+
+(function setupLogoLongPress() {
+  let timer = null;
+  const DURATION = 650; // ms podržení
+
+  const start = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      if (confirm('Změnit API klíč?')) changeApiKey();
+    }, DURATION);
+  };
+  const cancel = () => { clearTimeout(timer); timer = null; };
+
+  els.topbarTitle.addEventListener('touchstart', start, { passive: true });
+  els.topbarTitle.addEventListener('touchend', cancel);
+  els.topbarTitle.addEventListener('touchmove', cancel, { passive: true });
+  els.topbarTitle.addEventListener('touchcancel', cancel);
+  els.topbarTitle.addEventListener('mousedown', start);
+  els.topbarTitle.addEventListener('mouseup', cancel);
+  els.topbarTitle.addEventListener('mouseleave', cancel);
 })();
 
 // ============ INIT ============
